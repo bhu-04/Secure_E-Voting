@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block title %}Voter Registration{% endblock %}
+
+{% block content %}
+    <h2 class="mb-4 text-center">New Voter Registration ✍️</h2>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="mb-3">
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}" role="alert">{{ message }}</div>
+        {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    
+    <div class="card p-4 shadow-sm">
+        <form method="POST" action="{{ url_for('register') }}">
+            <div class="mb-3">
+                <label for="id" class="form-label">Choose Voter ID</label>
+                <input type="text" class="form-control" id="id" name="id" required>
+            </div>
+            
+            <div class="mb-4">
+                <label for="password" class="form-label">Choose Password</label>
+                <input type="password" class="form-control" id="password" name="password" required>
+            </div>
+            
+            <button type="submit" class="btn btn-success w-100">Register</button>
+        </form>
+    </div>
+
+    <p class="text-center mt-3">
+        Already have an account? <a href="{{ url_for('login') }}">Login Here</a>
+    </p>
+{% endblock %}

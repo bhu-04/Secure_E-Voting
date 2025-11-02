@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block title %}Cast Your Vote{% endblock %}
+
+{% block content %}
+    <h2 class="mb-4 text-center">Hello, {{ session.get('user_id') }}! Cast Your Vote</h2>
+    <hr>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="mb-3">
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}" role="alert">{{ message }}</div>
+        {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="card p-4 shadow-lg border-primary">
+        <form method="POST" action="{{ url_for('submit_vote') }}">
+            <h4 class="mb-4">Select Your Preferred Candidate (E-Ballot):</h4>
+            
+            <div class="form-check mb-3 p-3 border rounded">
+                <input class="form-check-input" type="radio" id="candidateA" name="candidate" value="Candidate A" required>
+                <label class="form-check-label fs-5 fw-bold" for="candidateA">Candidate A</label>
+                <p class="text-muted small mb-0">Justice Party - Focus on Transparency</p>
+            </div>
+            
+            <div class="form-check mb-3 p-3 border rounded">
+                <input class="form-check-input" type="radio" id="candidateB" name="candidate" value="Candidate B">
+                <label class="form-check-label fs-5 fw-bold" for="candidateB">Candidate B</label>
+                <p class="text-muted small mb-0">Unity Alliance - Focus on Economic Growth</p>
+            </div>
+            
+            <div class="form-check mb-4 p-3 border rounded">
+                <input class="form-check-input" type="radio" id="candidateC" name="candidate" value="Candidate C">
+                <label class="form-check-label fs-5 fw-bold" for="candidateC">Candidate C</label>
+                <p class="text-muted small mb-0">Reform Coalition - Focus on Social Equity</p>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-lg w-100 mt-3">
+                Submit Vote & Begin Encryption Process
+            </button>
+        </form>
+    </div>
+    
+    <p class="text-center mt-4"><a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-secondary">Logout</a></p>
+{% endblock %}

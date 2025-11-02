@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block title %}Vote Confirmation{% endblock %}
+
+{% block content %}
+    <h2 class="mb-4 text-center">Vote Submission Status 🎉</h2>
+    
+    <div class="card p-4 shadow-lg border-success">
+        <div class="card-body">
+            <h3 class="card-title text-success mb-3">{{ message | safe }}</h3> 
+            <p class="card-text fs-5">{{ details | safe }}</p>
+            
+            <hr>
+        </div>
+    </div>
+    
+    <p class="text-center mt-4">
+        <a href="{{ url_for('login') }}" class="btn btn-outline-primary btn-lg">Return to Login Page</a>
+    </p>
+{% endblock %}
