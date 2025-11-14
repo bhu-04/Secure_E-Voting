@@ -50,15 +50,15 @@
         
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
             margin-bottom: 30px;
         }
         
         .stat-card {
             background: linear-gradient(135deg, #234C6A 0%, #456882 100%);
             color: white;
-            padding: 25px;
+            padding: 20px;
             border-radius: 15px;
             text-align: center;
             border: 1px solid #456882;
@@ -72,9 +72,21 @@
         }
         
         .stat-card p {
-            font-size: 1em;
+            font-size: 0.95em;
             opacity: 0.9;
             color: #D2C1B6;
+        }
+        
+        .stat-card.pending {
+            background: linear-gradient(135deg, #456882 0%, #D2C1B6 100%);
+        }
+        
+        .stat-card.pending h3 {
+            color: #1B3C53;
+        }
+        
+        .stat-card.pending p {
+            color: #1B3C53;
         }
         
         .action-section {
@@ -103,8 +115,8 @@
             font-size: 1.1em;
         }
         
-        .control-group input {
-            width: 200px;
+        .control-group input, .control-group select {
+            width: 250px;
             padding: 12px;
             border: 2px solid #456882;
             border-radius: 8px;
@@ -113,7 +125,7 @@
             color: #D2C1B6;
         }
         
-        .control-group input:focus {
+        .control-group input:focus, .control-group select:focus {
             outline: none;
             border-color: #D2C1B6;
         }
@@ -314,13 +326,28 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
+
+        .info-box {
+            background: #456882;
+            border: 2px solid #D2C1B6;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            color: #D2C1B6;
+        }
+
+        .info-box strong {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 1.1em;
+        }
     </style>
 </head>
 <body>
     <div class="admin-container">
         <div class="header">
             <h1>🗳️ Admin Panel</h1>
-            <p>Election Management & Results</p>
+            <p>Election Management & Results (Continuous Voting)</p>
         </div>
         
         <div class="stats-grid">
@@ -329,15 +356,36 @@
                 <p>Total Votes Cast</p>
             </div>
             <div class="stat-card">
-                <h3 id="resultsStatus">-</h3>
-                <p>Results Status</p>
+                <h3 id="talliedVotes">-</h3>
+                <p>Votes Tallied</p>
+            </div>
+            <div class="stat-card pending">
+                <h3 id="pendingVotes">-</h3>
+                <p>Pending Votes</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="tallyStatus">-</h3>
+                <p>Tally Status</p>
             </div>
         </div>
         
         <div id="messageContainer"></div>
         
+        <div class="info-box" id="tallyingInfo" style="display: none;">
+            <strong>⏳ Tallying in Progress</strong>
+            Voters can continue casting votes. New votes will be counted in the next tally.
+        </div>
+        
         <div class="action-section">
             <h2>📊 Tally Votes & View Results</h2>
+            
+            <div class="control-group">
+                <label for="tallyMode">Tally Mode:</label>
+                <select id="tallyMode">
+                    <option value="incremental">Incremental (Only new votes)</option>
+                    <option value="full">Full Recount (All votes)</option>
+                </select>
+            </div>
             
             <div class="control-group">
                 <label for="timeLock">Time-Lock Duration (seconds):</label>
@@ -345,7 +393,7 @@
             </div>
             
             <button class="btn btn-primary" id="tallyBtn" onclick="tallyVotes()">
-                🔓 Decrypt & Tally All Votes
+                🔓 Decrypt & Tally Votes
             </button>
             
             <button class="btn btn-info" id="refreshBtn" onclick="loadStats()">
@@ -375,8 +423,8 @@
         // Load statistics on page load
         window.addEventListener('DOMContentLoaded', () => {
             loadStats();
-            // Auto-refresh every 10 seconds
-            setInterval(loadStats, 10000);
+            // Auto-refresh every 5 seconds
+            setInterval(loadStats, 5000);
         });
         
         function showMessage(message, type = 'info') {
@@ -387,65 +435,66 @@
         
         async function loadStats() {
             const totalVotesEl = document.getElementById('totalVotes');
-            const resultsStatusEl = document.getElementById('resultsStatus');
+            const talliedVotesEl = document.getElementById('talliedVotes');
+            const pendingVotesEl = document.getElementById('pendingVotes');
+            const tallyStatusEl = document.getElementById('tallyStatus');
+            const tallyingInfoBox = document.getElementById('tallyingInfo');
+            const tallyBtn = document.getElementById('tallyBtn');
             
             try {
-                // Use relative URL to avoid CORS issues
-                const ledgerResponse = await fetch('/api/ledger', {
+                // Check tally status
+                const statusResponse = await fetch('/api/tally_status', {
                     method: 'GET',
                     headers: {
                         'Accept': 'application/json'
                     }
                 });
                 
-                if (!ledgerResponse.ok) {
-                    throw new Error(`HTTP ${ledgerResponse.status}`);
+                if (!statusResponse.ok) {
+                    throw new Error(`HTTP ${statusResponse.status}`);
                 }
                 
-                const data = await ledgerResponse.json();
-                const totalVotes = data.metadata?.total_votes || 0;
+                const statusData = await statusResponse.json();
+                const totalVotes = statusData.total_votes || 0;
+                const talliedVotes = statusData.tallied_votes || 0;
+                const pendingVotes = statusData.new_votes_pending || 0;
+                const tallyingInProgress = statusData.tallying_in_progress || false;
                 
                 totalVotesEl.innerHTML = `<span class="status-indicator status-online"></span>${totalVotes}`;
+                talliedVotesEl.innerHTML = `<span class="status-indicator status-online"></span>${talliedVotes}`;
+                pendingVotesEl.innerHTML = `<span class="status-indicator ${pendingVotes > 0 ? 'status-pending' : 'status-online'}"></span>${pendingVotes}`;
                 
-                // Check if results exist
-                try {
-                    const resultsResponse = await fetch('/api/results', {
-                        method: 'GET',
-                        headers: {
-                            'Accept': 'application/json'
-                        }
-                    });
-                    
-                    if (resultsResponse.ok) {
-                        const resultsData = await resultsResponse.json();
-                        if (resultsData.success) {
-                            resultsStatusEl.innerHTML = '<span class="status-indicator status-online"></span>Ready';
-                        } else {
-                            resultsStatusEl.innerHTML = '<span class="status-indicator status-pending"></span>Pending';
-                        }
-                    } else {
-                        resultsStatusEl.innerHTML = '<span class="status-indicator status-pending"></span>Pending';
-                    }
-                } catch {
-                    resultsStatusEl.innerHTML = '<span class="status-indicator status-pending"></span>Pending';
+                if (tallyingInProgress) {
+                    tallyStatusEl.innerHTML = '<span class="status-indicator status-pending"></span>Active';
+                    tallyingInfoBox.style.display = 'block';
+                    tallyBtn.disabled = true;
+                    tallyBtn.textContent = '⏳ Tallying...';
+                } else {
+                    tallyStatusEl.innerHTML = '<span class="status-indicator status-online"></span>Idle';
+                    tallyingInfoBox.style.display = 'none';
+                    tallyBtn.disabled = false;
+                    tallyBtn.textContent = '🔓 Decrypt & Tally Votes';
                 }
                 
             } catch (error) {
                 console.error('Stats loading error:', error);
                 totalVotesEl.innerHTML = '<span class="status-indicator status-offline"></span>—';
-                resultsStatusEl.innerHTML = '<span class="status-indicator status-offline"></span>Offline';
-                showMessage('Backend services may be offline. Check if storage service is running on port 5002.', 'error');
+                talliedVotesEl.innerHTML = '<span class="status-indicator status-offline"></span>—';
+                pendingVotesEl.innerHTML = '<span class="status-indicator status-offline"></span>—';
+                tallyStatusEl.innerHTML = '<span class="status-indicator status-offline"></span>Offline';
             }
         }
         
         async function tallyVotes() {
             const timeLock = document.getElementById('timeLock').value;
+            const tallyMode = document.getElementById('tallyMode').value;
             const tallyBtn = document.getElementById('tallyBtn');
             
             tallyBtn.disabled = true;
             tallyBtn.textContent = '⏳ Processing...';
             
-            showMessage(`Starting tallying process with ${timeLock}s time-lock...`, 'info');
+            const modeText = tallyMode === 'incremental' ? 'incremental (new votes only)' : 'full recount';
+            showMessage(`Starting ${modeText} tally with ${timeLock}s time-lock. Voting remains open!`, 'info');
             
             try {
                 const response = await fetch('/api/tally', {
@@ -455,7 +504,8 @@
                         'Accept': 'application/json'
                     },
                     body: JSON.stringify({
-                        time_lock_seconds: parseInt(timeLock)
+                        time_lock_seconds: parseInt(timeLock),
+                        mode: tallyMode
                     })
                 });
                 
@@ -467,7 +517,7 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    showMessage(`✅ Tallying completed! ${data.total_votes_decrypted} votes processed.`, 'success');
+                    showMessage(`✅ ${data.tally_mode === 'incremental' ? 'Incremental tally' : 'Full recount'} completed! ${data.votes_processed} votes processed.`, 'success');
                     
                     setTimeout(() => {
                         viewResults();
@@ -481,7 +531,7 @@
                 showMessage('❌ Tally Error: ' + error.message, 'error');
             } finally {
                 tallyBtn.disabled = false;
-                tallyBtn.textContent = '🔓 Decrypt & Tally All Votes';
+                tallyBtn.textContent = '🔓 Decrypt & Tally Votes';
             }
         }
         
@@ -508,7 +558,17 @@
                 
                 if (data.success) {
                     const results = data.results;
+                    const pendingVotes = data.pending_votes || 0;
                     let html = '';
+                    
+                    if (pendingVotes > 0) {
+                        html += `
+                            <div class="info-box" style="margin-bottom: 20px;">
+                                <strong>ℹ️ ${pendingVotes} new vote(s) not yet counted</strong>
+                                Run an incremental tally to include these votes in the results.
+                            </div>
+                        `;
+                    }
                     
                     for (const [candidate, count] of Object.entries(results.vote_counts)) {
                         const percentage = (count / results.total_votes * 100).toFixed(1);
@@ -524,11 +584,15 @@
                     
                     html += `
                         <div class="result-item" style="border-left-color: #D2C1B6; margin-top: 20px;">
-                            <span><strong>Total Votes</strong></span>
+                            <span><strong>Total Votes Tallied</strong></span>
                             <span>${results.total_votes}</span>
                         </div>
                         <div class="result-item" style="border-left-color: #456882;">
-                            <span><strong>Tallied At</strong></span>
+                            <span><strong>Tally Type</strong></span>
+                            <span>${results.tally_type || 'N/A'}</span>
+                        </div>
+                        <div class="result-item" style="border-left-color: #456882;">
+                            <span><strong>Last Updated</strong></span>
                             <span>${new Date(results.timestamp).toLocaleString()}</span>
                         </div>
                     `;

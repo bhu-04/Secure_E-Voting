@@ -14,7 +14,7 @@ import json
 os.makedirs('outputs/analysis', exist_ok=True)
 os.makedirs('outputs/graphs', exist_ok=True)
 
-# ============ Module 1: Weak AES Encryption ============
+# ============ Module 1: AES Encryption ============
 
 WEAK_KEY = b'0123456789ABCDEF'  # Fixed 16-byte key (128-bit AES)
 WEAK_IV = b'FEDCBA9876543210'   # Fixed IV (insecure!)

@@ -178,6 +178,7 @@ def submit_vote():
             raise ValueError(f"Storage failed: {error_msg}")
         
         vote_hash = storage_result.get('vote_hash', 'N/A')
+        tallying_in_progress = storage_result.get('tallying_in_progress', False)
     
     except requests.exceptions.RequestException as e:
         print(f"Error connecting to Storage API: {e}")
@@ -195,8 +196,12 @@ def submit_vote():
     session['vote_candidate'] = selected_candidate
     session['vote_timestamp'] = current_timestamp
     session['vote_hash'] = vote_hash
+    session['tallying_in_progress'] = tallying_in_progress
     
-    flash('Your vote has been securely recorded and time-locked.', 'success')
+    if tallying_in_progress:
+        flash('Your vote has been securely recorded. Tallying is in progress - your vote will be counted in the next tally!', 'success')
+    else:
+        flash('Your vote has been securely recorded and time-locked.', 'success')
     
     return redirect(url_for('confirmation'))
 
@@ -206,11 +211,16 @@ def confirmation():
         candidate = session.get('vote_candidate', 'N/A')
         timestamp = session.get('vote_timestamp', 'N/A')
         vote_hash = session.get('vote_hash', 'N/A')
+        tallying_in_progress = session.get('tallying_in_progress', False)
         
         session.pop('vote_success', None)
+        session.pop('tallying_in_progress', None)
         
         message = f"Thank you! Your vote for Candidate {candidate} is confirmed."
         details = f"Submission Time: {timestamp}\n Vote Hash: {vote_hash[:16]}...\n The vote is encrypted and stored in the secure ledger."
+        
+        if tallying_in_progress:
+            details += "\n\nNote: Tallying is currently in progress. Your vote will be included in the next count."
     else:
         message = "Vote status check."
         details = "Your status is pending or you have already voted."
@@ -274,11 +284,29 @@ def api_tally():
         }), 503
 
 
+@app.route('/api/tally_status', methods=['GET'])
+def api_tally_status():
+    """NEW: Proxy to storage service tally status endpoint"""
+    try:
+        response = requests.get(f"{STORAGE_API_URL}/tally_status", timeout=5)
+        return jsonify(response.json()), response.status_code
+    except requests.exceptions.RequestException as e:
+        print(f"Error connecting to storage service: {e}")
+        return jsonify({
+            "error": "Storage service unavailable",
+            "tallying_in_progress": False,
+            "total_votes": 0,
+            "tallied_votes": 0,
+            "new_votes_pending": 0
+        }), 503
+
+
 if __name__ == '__main__':
     load_users()
     
     print("="*60)
     print("Frontend & Authentication Service")
+    print("Version 2.0 - Continuous Voting Support")
     print("Running on http://127.0.0.1:5000")
     print("Admin Panel: http://127.0.0.1:5000/admin")
     print("="*60)
